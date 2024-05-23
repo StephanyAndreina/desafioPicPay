@@ -114,49 +114,52 @@ def inserir():
 def transferir():
     dados = request.json
 
+    payerdados = collection.find_one({'id': payer})
+    payeedados = collection.find_one({'id': payee})
+
     #parametros
     payer = dados.get('payer') #origem
     payee = dados.get('payee') #destino
     value = dados.get('value')
 
+    
+
      #verificando se a conta origem é lojista
-    if collection.find_one({'id': payer}).get('usuario') == 'lojista':
+    if payerdados['usuario'] == 'lojista':
         return jsonify({'erro': 'Contas de lojistas não podem realizar transferencias'}), 400
 
     #verificando se a conta origem existe
-    if not collection.find_one({'id': payer}):
+    if not payerdados:
         return jsonify({'erro': 'Conta de origem não encontrada'}), 400
 
     #verificando se a conta destino existe
-    if not collection.find_one({'id': payee}):
+    if not payeedados:
         return jsonify({'erro': 'Conta de destino não encontrada'}), 400
 
     #verificando se há saldo na conta origem
-    if collection.find_one({'id': payer})['saldo'] < value:
+    if payerdados['saldo'] < value:
         return jsonify({'erro':'saldo insuficiente'}),400
 
     #verificação de fraude
-    if not validation_antifraud(collection.find_one({'id': payee}), collection.find_one({'id': payer})):
+    if not validation_antifraud(payeedados, payerdados):
         return jsonify({"Erro": "Fraude detectada!"}), 403
     
 
     #dando update nos documentos
 
-    emailr = collection.find_one({'id': payer}).get('email')
-    emaile = collection.find_one({'id': payee}).get('email')
-    nomer = collection.find_one({'id': payer}).get('nome')
-    nomee = collection.find_one({'id': payee}).get('nome')
-    print(nomer,nomee)
 
+    rantes = payerdados['saldo']
+    eantes = payeedados['saldo']
     try:
         collection.update_one({'id': payer}, {'$inc': {'saldo': -value}})
         collection.update_one({'id': payee}, {'$inc': {'saldo': value}})
-        email(emailr,nomer,nomee,value)
+        email(payerdados['email'],payerdados['nome'],payeedados['nome'],value)
         return jsonify({'mensagem':'transação realizada com sucesso'}), 201
         
     except Exception as e:
-        collection.update_one({'id': payer}, {'$inc': {'saldo': value}})
-        collection.update_one({'id': payee}, {'$inc': {'saldo': -value}})
+        collection.update_one({'id': payer}, {'$set': {'saldo': rantes}})
+        collection.update_one({'id': payee}, {'$set': {'saldo': eantes}})
+        
         return jsonify({'erro':'erro ao transferir o dinheiro entre as contas'})
     
     
