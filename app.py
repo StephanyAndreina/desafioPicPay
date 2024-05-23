@@ -34,6 +34,9 @@ def email(email,payer,payee,valor):
         return jsonify({f'erro':'erro ao enviar o email {e}'})
 
 
+#função de validação de antifraude
+def validation_antifraud(payee, payer):
+    return True
 
 	
 
@@ -131,6 +134,10 @@ def transferir():
     #verificando se há saldo na conta origem
     if collection.find_one({'id': payer})['saldo'] < value:
         return jsonify({'erro':'saldo insuficiente'}),400
+
+    #verificação de fraude
+    if not validation_antifraud(collection.find_one({'id': payee}), collection.find_one({'id': payer})):
+        return jsonify({"Erro": "Fraude detectada!"}), 403
     
 
     #dando update nos documentos
